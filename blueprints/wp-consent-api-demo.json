@@ -1,0 +1,62 @@
+{
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "landingPage": "/consent-api-demo/",
+  "meta": {
+    "title": "WP Consent API Demo",
+    "author": "WordPress Contributors",
+    "description": "Installs WP Consent API and opens an interactive category and service consent demo.",
+    "categories": [
+      "plugin",
+      "privacy"
+    ]
+  },
+  "preferredVersions": {
+    "php": "8.3",
+    "wp": "latest"
+  },
+  "features": {
+    "networking": true
+  },
+  "steps": [
+    {
+      "step": "login"
+    },
+    {
+      "step": "setSiteOptions",
+      "options": {
+        "blogname": "WP Consent API Demo",
+        "blogdescription": "Interactive Playground demo"
+      }
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "git:directory",
+        "url": "https://github.com/fellyph/wp-consent-level-api.git",
+        "ref": "HEAD",
+        "path": "/"
+      },
+      "options": {
+        "activate": true
+      },
+      "ifAlreadyInstalled": "overwrite"
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "git:directory",
+        "url": "https://github.com/fellyph/wp-consent-level-api.git",
+        "ref": "HEAD",
+        "path": "/playground/wp-consent-api-demo"
+      },
+      "options": {
+        "activate": true
+      },
+      "ifAlreadyInstalled": "overwrite"
+    },
+    {
+      "step": "runPHP",
+      "code": "<?php\nrequire '/wordpress/wp-load.php';\n\n$content = '[wp_consent_api_demo]';\n$page = get_page_by_path( 'consent-api-demo' );\n\nif ( $page ) {\n\t$page_id = $page->ID;\n\twp_update_post(\n\t\tarray(\n\t\t\t'ID'           => $page_id,\n\t\t\t'post_title'   => 'WP Consent API Demo',\n\t\t\t'post_content' => $content,\n\t\t)\n\t);\n} else {\n\t$page_id = wp_insert_post(\n\t\tarray(\n\t\t\t'post_title'   => 'WP Consent API Demo',\n\t\t\t'post_name'    => 'consent-api-demo',\n\t\t\t'post_status'  => 'publish',\n\t\t\t'post_type'    => 'page',\n\t\t\t'post_content' => $content,\n\t\t)\n\t);\n}\n\nif ( $page_id && ! is_wp_error( $page_id ) ) {\n\tupdate_option( 'show_on_front', 'page' );\n\tupdate_option( 'page_on_front', $page_id );\n\tflush_rewrite_rules();\n}\n"
+    }
+  ]
+}
