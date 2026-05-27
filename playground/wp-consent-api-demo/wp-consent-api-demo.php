@@ -68,9 +68,15 @@ function wp_consent_api_demo_enqueue_script(): void {
 
 	wp_enqueue_script( 'wp-consent-api' );
 
-	wp_add_inline_script(
-		'wp-consent-api',
-		<<<'JS'
+	$enqueued = true;
+}
+
+/**
+ * Print the interactive demo script.
+ */
+function wp_consent_api_demo_print_script(): void {
+	?>
+	<script>
 (function () {
 	function ready(callback) {
 		if (document.readyState !== 'loading') {
@@ -157,11 +163,8 @@ function wp_consent_api_demo_enqueue_script(): void {
 		render();
 	});
 }());
-JS,
-		'after'
-	);
-
-	$enqueued = true;
+	</script>
+	<?php
 }
 
 /**
@@ -269,6 +272,7 @@ function wp_consent_api_demo_shortcode(): string {
 			<button type="button" data-reset-consent><?php esc_html_e( 'Reset demo consent', 'wp-consent-api' ); ?></button>
 		</section>
 	</div>
+	<?php wp_consent_api_demo_print_script(); ?>
 	<?php
 	return (string) ob_get_clean();
 }
