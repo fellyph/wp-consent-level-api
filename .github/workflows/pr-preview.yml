@@ -6,16 +6,123 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 jobs:
+  create-blueprint:
+    name: Create Playground Blueprint
+    runs-on: ubuntu-latest
+    outputs:
+      blueprint: ${{ steps.blueprint.outputs.result }}
+    steps:
+      - name: Create Playground Blueprint
+        id: blueprint
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const pr = context.payload.pull_request;
+            const repositoryUrl = pr.head.repo.clone_url;
+            const ref = pr.head.ref;
+
+            const pluginFromPr = (path) => ({
+              resource: 'git:directory',
+              url: repositoryUrl,
+              ref,
+              refType: 'branch',
+              path,
+            });
+
+            const createDemoPage = `<?php
+            require '/wordpress/wp-load.php';
+
+            $content = '[wp_consent_api_demo]';
+            $page = get_page_by_path( 'consent-api-demo' );
+
+            if ( $page ) {
+                $page_id = $page->ID;
+                wp_update_post(
+                    array(
+                        'ID'           => $page_id,
+                        'post_title'   => 'WP Consent API Demo',
+                        'post_content' => $content,
+                    )
+                );
+            } else {
+                $page_id = wp_insert_post(
+                    array(
+                        'post_title'   => 'WP Consent API Demo',
+                        'post_name'    => 'consent-api-demo',
+                        'post_status'  => 'publish',
+                        'post_type'    => 'page',
+                        'post_content' => $content,
+                    )
+                );
+            }
+
+            if ( $page_id && ! is_wp_error( $page_id ) ) {
+                update_option( 'show_on_front', 'page' );
+                update_option( 'page_on_front', $page_id );
+                flush_rewrite_rules();
+            }
+            `;
+
+            const blueprint = {
+              $schema: 'https://playground.wordpress.net/blueprint-schema.json',
+              landingPage: '/consent-api-demo/',
+              meta: {
+                title: 'WP Consent API PR Preview',
+                author: 'WordPress Contributors',
+                description: 'Installs the PR branch and opens an interactive WP Consent API demo page.',
+                categories: ['plugin', 'privacy'],
+              },
+              preferredVersions: {
+                php: '8.3',
+                wp: 'latest',
+              },
+              features: {
+                networking: true,
+              },
+              steps: [
+                { step: 'login' },
+                {
+                  step: 'setSiteOptions',
+                  options: {
+                    blogname: 'WP Consent API Preview',
+                    blogdescription: 'Interactive Playground preview',
+                  },
+                },
+                {
+                  step: 'installPlugin',
+                  pluginData: pluginFromPr('/'),
+                  options: { activate: true },
+                  ifAlreadyInstalled: 'overwrite',
+                },
+                {
+                  step: 'installPlugin',
+                  pluginData: pluginFromPr('/playground/wp-consent-api-demo'),
+                  options: { activate: true },
+                  ifAlreadyInstalled: 'overwrite',
+                },
+                {
+                  step: 'runPHP',
+                  code: createDemoPage,
+                },
+              ],
+            };
+
+            return JSON.stringify(blueprint);
+
   preview:
     name: Post Playground Preview Button
+    needs: create-blueprint
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Post Playground Preview Button
         uses: WordPress/action-wp-playground-pr-preview@v2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           mode: append-to-description
-          plugin-path: .
+          blueprint: ${{ needs.create-blueprint.outputs.blueprint }}
